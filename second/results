@@ -1,0 +1,148 @@
+Copy 'sys' '512' '8192' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '512' '8192' 
+Real Time: 23, User Time 3, System Time 19
+Done
+Copy 'sys' '256' '8192' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '256' '8192' 
+Real Time: 5, User Time 0, System Time 4
+Done
+Copy 'lib' '512' '8192' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '512' '8192' 
+Real Time: 23, User Time 4, System Time 18
+Done
+Copy 'lib' '256' '8192' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '256' '8192' 
+Real Time: 6, User Time 0, System Time 4
+Done
+Copy 'sys' '800' '4096' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '4096' 
+Real Time: 40, User Time 8, System Time 31
+Done
+Copy 'sys' '400' '4096' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '400' '4096' 
+Real Time: 9, User Time 2, System Time 7
+Done
+Copy 'lib' '800' '4096' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '4096' 
+Real Time: 42, User Time 9, System Time 32
+Done
+Copy 'lib' '400' '4096' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '400' '4096' 
+Real Time: 10, User Time 2, System Time 8
+Done
+Copy 'sys' '1600' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '1600' '512' 
+Real Time: 143, User Time 31, System Time 111
+Done
+Copy 'sys' '800' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '512' 
+Real Time: 36, User Time 7, System Time 28
+Done
+Copy 'lib' '1600' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '1600' '512' 
+Real Time: 188, User Time 52, System Time 133
+Done
+Copy 'lib' '800' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '512' 
+Real Time: 46, User Time 12, System Time 32
+Done
+Copy 'sys' '6400' '4' 
+Real Time: 1, User Time 0, System Time 1
+Sort system '6400' '4' 
+Real Time: 2156, User Time 470, System Time 1681
+Done
+Copy 'sys' '1600' '4' 
+Real Time: 1, User Time 0, System Time 0
+Sort system '1600' '4' 
+Real Time: 138, User Time 32, System Time 105
+Done
+Copy 'lib' '6400' '4' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '6400' '4' 
+Real Time: 2660, User Time 742, System Time 1911
+Done
+Copy 'lib' '1600' '4' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '1600' '4' 
+Real Time: 167, User Time 44, System Time 121
+Done
+Copy 'lib' '1600' '4' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '1600' '4' 
+Real Time: 171, User Time 45, System Time 124
+Done
+Copy 'lib' '1600' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '1600' '512' 
+Real Time: 185, User Time 48, System Time 135
+Done
+Copy 'lib' '800' '4096' 
+Real Time: 1, User Time 0, System Time 0
+Sort system '800' '4096' 
+Real Time: 42, User Time 10, System Time 32
+Done
+Copy 'sys' '800' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '512' 
+Real Time: 35, User Time 8, System Time 26
+Done
+
+Wpływ wielkości bloku na szybkość operacji:
+
+Copy 'lib' '800' '8192' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '8192' 
+Real Time: 57, User Time 12, System Time 44
+Done
+Copy 'lib' '800' '4096' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '4096' 
+Real Time: 41, User Time 8, System Time 32
+Done
+Copy 'lib' '800' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '512' 
+Real Time: 46, User Time 12, System Time 33
+Done
+Copy 'lib' '800' '4' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '4' 
+Real Time: 42, User Time 11, System Time 30
+Done
+
+Widać różnicę między 8192 - 4096. Potem jednakowo, w granicach błędu pomiarowego
+
+Copy 'sys' '800' '8192' 
+Real Time: 1, User Time 0, System Time 0
+Sort system '800' '8192' 
+Real Time: 54, User Time 7, System Time 47
+Done
+Copy 'sys' '800' '4096' 
+Real Time: 1, User Time 0, System Time 0
+Sort system '800' '4096' 
+Real Time: 39, User Time 6, System Time 32
+Done
+Copy 'sys' '800' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '800' '512' 
+Real Time: 36, User Time 7, System Time 27
+Done
+Copy 'sys' '800' '4' 
+Real Time: 1, User Time 0, System Time 0
+Sort system '800' '4' 
+Real Time: 34, User Time 7, System Time 26
+Done
+
+Jak wyżej

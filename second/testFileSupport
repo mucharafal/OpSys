@@ -1,0 +1,15 @@
+# 1 - source file to test
+# 2 - array size
+# 3 - record size
+# 4 - sys or lib
+# 5 - file to save results
+
+echo "Copy '$4' '$2' '$3' " >> $5
+./generateFile "copy" $1 "copied" $2 $3 $4 >> $5
+
+echo "Sort system '$2' '$3' " >> $5
+./generateFile "sort" "copied" $2 $3 $4 >> $5
+
+echo "Done" >> $5
+
+rm copied

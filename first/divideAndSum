@@ -1,0 +1,5 @@
+python3 divideFile.py ./results/$1.txt ./results/$1-
+python3 sumResult.py ./results/$1.txt >> ./results/$1Sum
+python3 sumResult.py ./results/$1-0 >> ./results/$1-0Sum
+python3 sumResult.py ./results/$1-1 >> ./results/$1-1Sum
+python3 sumResult.py ./results/$1-2 >> ./results/$1-2Sum

@@ -1,0 +1,44 @@
+Copy 'lib' '4096' '8192' 
+Real Time: 2, User Time 0, System Time 2
+Sort system '4096' '8192' 
+Real Time: 1647, User Time 260, System Time 1380
+Done
+Copy 'lib' '4096' '4096' 
+Real Time: 1, User Time 0, System Time 1
+Sort system '4096' '4096' 
+Real Time: 1154, User Time 251, System Time 900
+Done
+Copy 'lib' '4096' '512' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '4096' '512' 
+Real Time: 1162, User Time 317, System Time 841
+Done
+Copy 'lib' '4096' '4' 
+Real Time: 0, User Time 0, System Time 0
+Sort system '4096' '4' 
+Real Time: 1067, User Time 294, System Time 770
+Done
+Copy 'sys' '4096' '8192' 
+Real Time: 2, User Time 0, System Time 1
+Sort system '4096' '8192' 
+Real Time: 1545, User Time 204, System Time 1335
+Done
+Copy 'sys' '4096' '4096' 
+Real Time: 1, User Time 0, System Time 1
+Sort system '4096' '4096' 
+Real Time: 1081, User Time 190, System Time 889
+Done
+Copy 'sys' '4096' '512' 
+Real Time: 1, User Time 0, System Time 0
+Sort system '4096' '512' 
+Real Time: 921, User Time 197, System Time 720
+Done
+Copy 'sys' '4096' '4' 
+Real Time: 1, User Time 0, System Time 0
+Sort system '4096' '4' 
+Real Time: 869, User Time 184, System Time 682
+Done
+
+Wnioski:
+sys jest wydajniejsze od lib, jednak w granicach 5-10%
+rozmiar bloku też ma znaczenie choć < 4k śladowe

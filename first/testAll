@@ -1,0 +1,10 @@
+rm target
+python3 transformTest.py
+chmod +770 target
+rm -r results
+mkdir results
+./copyAndTest results
+./divideAndSum result3bO0
+./divideAndSum result3bO1
+./divideAndSum result3bO2
+./divideAndSum result3bOs

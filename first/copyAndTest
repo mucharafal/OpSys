@@ -1,0 +1,32 @@
+ 
+ mkdir test0
+ cp -r main.c Makefile target dynamicMain.c libraries test0
+cd test0
+make testAll kodOptymalizacji=0
+cd ..
+cp ./test0/result3bO0.txt $1
+rm -r test0
+
+ mkdir test1
+ cp -r main.c Makefile target dynamicMain.c libraries test1
+cd test1
+make testAll kodOptymalizacji=1
+cd ..
+cp ./test1/result3bO1.txt $1
+rm -r test1
+
+ mkdir test2
+ cp -r main.c Makefile target dynamicMain.c libraries test2
+cd test2
+make testAll kodOptymalizacji=2
+cd ..
+cp ./test2/result3bO2.txt $1
+rm -r test2
+
+ mkdir tests
+ cp -r main.c Makefile target dynamicMain.c libraries tests
+cd tests
+make testAll kodOptymalizacji=s
+cd ..
+cp ./tests/result3bOs.txt $1
+rm -r tests

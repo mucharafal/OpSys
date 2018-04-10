@@ -1,0 +1,55 @@
+make
+
+# 1 - name of file to save $1
+
+./generateFile "generate" "toTest" 1000 8192 "sys"
+
+./testFileSupport toTest 512 8192 sys $1
+./testFileSupport toTest 256 8192 sys $1
+
+./testFileSupport toTest 512 8192 lib $1
+./testFileSupport toTest 256 8192 lib $1
+
+./testFileSupport toTest 800 4096 sys $1
+./testFileSupport toTest 400 4096 sys $1
+
+./testFileSupport toTest 800 4096 lib $1
+./testFileSupport toTest 400 4096 lib $1
+
+./testFileSupport toTest 1600 512 sys $1
+./testFileSupport toTest 800 512 sys $1
+
+./testFileSupport toTest 1600 512 lib $1
+./testFileSupport toTest 800 512 lib $1
+
+./testFileSupport toTest 6400 4 sys $1
+./testFileSupport toTest 1600 4 sys $1
+
+./testFileSupport toTest 6400 4 lib $1
+./testFileSupport toTest 1600 4 lib $1
+
+
+./testFileSupport toTest 1600 4 lib $1
+./testFileSupport toTest 1600 512 lib $1
+
+./testFileSupport toTest 800 4096 lib $1
+./testFileSupport toTest 800 512 sys $1
+
+./generateFile "generate" "toTest" 1000 8192 "sys"
+./testFileSupport toTest 800 8192 lib $1
+./testFileSupport toTest 800 4096 lib $1
+./testFileSupport toTest 800 512 lib $1
+./testFileSupport toTest 800 4 lib $1
+./testFileSupport toTest 800 8192 sys $1
+./testFileSupport toTest 800 4096 sys $1
+./testFileSupport toTest 800 512 sys $1
+./testFileSupport toTest 800 4 sys $1
+
+
+
+
+
+
+
+
+

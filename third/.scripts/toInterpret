@@ -1,0 +1,3 @@
+ls -l
+./IHello
+./checkDirectory . 20.01.2018,10:00:00 < nftw

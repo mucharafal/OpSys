@@ -1,0 +1,10 @@
+make
+./generateFile "generate" "toTest" $2 8192 "sys"
+./testFileSupport toTest $2 8192 lib $1
+./testFileSupport toTest $2 4096 lib $1
+./testFileSupport toTest $2 512 lib $1
+./testFileSupport toTest $2 4 lib $1
+./testFileSupport toTest $2 8192 sys $1
+./testFileSupport toTest $2 4096 sys $1
+./testFileSupport toTest $2 512 sys $1
+./testFileSupport toTest $2 4 sys $1
