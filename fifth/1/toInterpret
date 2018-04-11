@@ -1,0 +1,6 @@
+ls -l
+echo 
+ls -l | grep interpreter
+echo 
+     ls -l    | grep interpret | grep interpreter | grep interpreter.c  
+   ./echoProgram | grep inter
