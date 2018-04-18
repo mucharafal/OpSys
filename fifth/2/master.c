@@ -14,6 +14,9 @@ void handler(int a){
 }
 
 int main(int args, char *argv[]){
+	/*arguments:
+	argv[1] - pipe name
+	*/
 	if(args > 1) {
 		signal(SIGINT, &handler);
 		mkfifo(argv[1], 0640);
@@ -22,7 +25,7 @@ int main(int args, char *argv[]){
 		
 		char *buffer = malloc(128);
 		buffer[0] = 1;
-		while(buffer[0]) {
+		while(1) {
 			fread(buffer, 128, 1, pipeHandler);
 			printf("%s", buffer);
 		}

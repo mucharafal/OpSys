@@ -133,6 +133,7 @@ void runLineWithPipes(commandLinePipeline *line){
 
 				commandLine *parsedLine = line -> array[i];
 				execCommandLine(parsedLine);
+				wait(NULL);
 			}
 		}
 		commandLine *parsedLine = line -> array[line -> arraySize - 1];
@@ -164,6 +165,7 @@ int main(int args, char *argv[]){
 		while(fgets(line, BUFFERSIZE, file)){
 			execLine(line);
 		}
+		printf("End of program...\n");
 	}
 	return 0;
 }

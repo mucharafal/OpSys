@@ -8,8 +8,12 @@
 #include <sys/wait.h>
 
 int main(int args, char *argv[]){
+	/*arguments:
+	argv[1] - pipe name
+	argv[2] - number messages
+	*/
 	if(args > 2) {
-		FILE *pipeHandler = fopen(argv[1], "w");
+		printf("Slave pid: %li\n", getpid());
 		
 		int N = atoi(argv[2]);
 		char *buffer = malloc(128);
@@ -18,12 +22,17 @@ int main(int args, char *argv[]){
 			FILE *inputDate = popen("date", "r");
 			fread(buffer, 128, 1, inputDate);
 			pclose(inputDate);
+
+			FILE *pipeHandler = fopen(argv[1], "w");
+
 			fprintf(pipeHandler, "%li ", getpid());
 			fwrite(buffer, 128, 1, pipeHandler);
+
+			fclose(pipeHandler);
+
 			sleep((rand()%4) + 2);
 		}
-
-		fclose(pipeHandler);
+		
 	}
 	return 0;
 }
