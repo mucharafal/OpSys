@@ -8,41 +8,63 @@
 #include <sys/wait.h>
 #include <linux/msg.h>
 #include <linux/ipc.h>
+#include <mqueue.h>
 #include <string.h>
 #include "header.h"
+#include <errno.h>
 
 
 int connectWithServer(int *serverQueue, int *clientQueue, int *clientID){
 	int result;
-	char *homedir = getenv("HOME");
-	key_t key = ftok(homedir, PROJECT_NUMBER);
-	*serverQueue = msgget(key, 0);
-	if(*serverQueue != -1) ;
+
+	//opening client queue
+	char *queuePath = calloc(12, 1);
+	strcpy(queuePath, "/");
+
+	char *buffer = malloc(11);
+	strcat(queuePath, Itoa(getpid(), buffer, 10));
+
+	free(buffer);
+
+	*clientQueue = openQueue(queuePath, O_CREAT | O_RDONLY);
+
+	if(*clientQueue != -1) 
+		printf("Opened\n");
 	else 
-		printf("Cannot open\n");
-	
-	key = ftok(homedir, getpid());
+		fprintf(stderr, "Error opening file: %s\n", strerror( errno ));
+	//opening server queue
+	strcpy(queuePath, "/SERVER");
 
-	*clientQueue = createQueue(key);
+	*serverQueue = openQueue(queuePath, O_WRONLY);
 
+	if(*serverQueue != -1) 
+		printf("Opened\n");
+	else 
+		fprintf(stderr, "Error opening file: %s\n", strerror( errno ));
+
+	free(queuePath);
+	//preparing to register on server
 	char *buf = malloc(64);
-	Itoa(key, buf, 10);
+	Itoa(getpid(), buf, 10);
 
-	struct msgbuf *msgbuf = malloc(sizeof(struct msgbuf) + MSGBUF_SIZE);
-	strcpy(msgbuf -> mtext, buf);
-	msgbuf -> mtype = 1;
+	char *message = calloc(MSGBUF_SIZE, 1);
+	strcpy(message, "ADD ");
+	strcat(message, buf);
 
-	if(msgsnd(*serverQueue, msgbuf, MSGBUF_SIZE, 0) == -1) {
-		printf("Cant send\n");
+	if(mq_send(*serverQueue, message, MSGBUF_SIZE, 0) == -1) {
+		fprintf(stderr, "Error sending: %s\n", strerror( errno ));
 	} else {
-		printf("Waiting for responce...\n");
-		if(msgrcv(*clientQueue, msgbuf, MSGBUF_SIZE, 0, 0) == -1) {
-			printf("Error occured...\n");
+
+		strclear(message);
+		if(mq_receive(*clientQueue, message, MSGBUF_SIZE, NULL) == -1) {
+			printf("Error occueeeed...\n");
 		}
-		printf("Received\n");
-		if(msgbuf->mtype == 1) {
+
+		commandLine *expression = processLineToCommandLine(message);
+
+		if(strcmp(expression->array[0], "NO") != 0) {
 			printf("Connected\n");
-			*clientID = atoi(msgbuf->mtext);
+			*clientID = atoi(expression->array[0]);
 			result = 1;
 		}
 		else {
@@ -51,75 +73,43 @@ int connectWithServer(int *serverQueue, int *clientQueue, int *clientID){
 		}
 	}
 
-	free(msgbuf);
 	free(buf);
 	return result;
 }
 
-void prepareMsgbufToSend(struct msgbuf *msgbuf, int clientID){
-	char *buf = malloc(32);
-	strcpy(msgbuf-> mtext, Itoa(clientID, buf, 10));
-	strcat(msgbuf->mtext, "                ");
-	memcpy(msgbuf->mtext + 16, "", MSGBUF_SIZE - 16);
-	free(buf);
+void prepareMsgbufToSend(char *message, int clientID){
+	strclear(message);
+	Itoa(clientID, message, 10);
+	strcat(message, " ");
 }
 void processFile(char *fileName, int server, int client, int clientID){
-	struct msgbuf *msgbuf = malloc(sizeof(struct msgbuf) + MSGBUF_SIZE);
-	msgbuf -> mtype = CALC;
 
 	char *buf = malloc(BUFFERSIZE);
 	FILE* file = fopen(fileName, "r");
 	int lineLength;
 	while(fgets(buf, BUFFERSIZE, file)){
-		int wasContentInLine = 0;
+		int wasContentInLine = 1;
 		commandLine *line = processLineToCommandLine(buf);
 		if(line->array[0] == 0)	continue;
-		prepareMsgbufToSend(msgbuf, clientID);
 
-		if(strcmp(line->array[0], "CALC") == 0){
-			msgbuf -> mtype = CALC;
-			buf[0] = 0;
-			strcat(buf, line->array[1]);
-			strcat(buf, " ");
-			strcat(buf, line->array[2]);
-			strcat(buf, " ");
-			strcat(buf, line->array[3]);
-			msgbuf->mtext[16] = 0;
-			strcat(msgbuf->mtext + 16, buf);
+		char *message = calloc(MSGBUF_SIZE, 1);
+		prepareMsgbufToSend(message, clientID);
+		
+		strcat(message, buf);
 
-			wasContentInLine = 1;
-		}
-		if(strcmp(line->array[0], "MIRROR") == 0){
-			//dodać kontrolę długości
-			strcpy(msgbuf ->mtext + 16, buf + 7);
-			msgbuf->mtype = MIRROR; 
-
-			wasContentInLine = 1;
-		}
-		if(strcmp(line->array[0], "DATE") == 0){
-			msgbuf->mtype = TIME;
-
-			wasContentInLine = 1;
-		}
-		if(strcmp(line->array[0], "END") == 0){
-			msgbuf->mtype = END;
-
-			wasContentInLine = 1;
-		}
-		msgsnd(server, msgbuf, MSGBUF_SIZE, 0);
+		mq_send(server, message, MSGBUF_SIZE, 0);
 		if(strcmp(line->array[0], "END") != 0 && wasContentInLine){
-			msgrcv(client, msgbuf, MSGBUF_SIZE, 0, 0);
-			printf("Received: %s\n", msgbuf->mtext);
+			strclear(message);
+			mq_receive(client, message, MSGBUF_SIZE, 0);
+			printf("Received: %s\n", message);
 		}
 
 		cleanCommandLine(line);
+		free(message);
 	}
-
-	
 
 	fclose(file);
 	free(buf);
-	free(msgbuf);
 }
 
 int main(int args, char *argv[]) {
@@ -128,6 +118,14 @@ int main(int args, char *argv[]) {
 	if(connectWithServer(&server, &client, &clientID))
 		processFile(argv[1], server, client, clientID);
 
-	removeQueue(client);
+	char *queuePath = calloc(12, 1);
+	strcpy(queuePath, "/");
+
+	char *buffer = malloc(11);
+	strcat(queuePath, Itoa(getpid(), buffer, 10));
+
+	free(buffer);
+
+	removeQueue(queuePath);
 	return 0;
 }

@@ -10,6 +10,7 @@
 #include <linux/ipc.h>
 #include <string.h>
 #include "header.h"
+#include <mqueue.h>
 
 //from: https://www.daniweb.com/programming/software-development/threads/148080/itoa-function-or-similar-in-linux
 char* Itoa(long int value, char* str, int radix) {
@@ -38,17 +39,35 @@ char* Itoa(long int value, char* str, int radix) {
     return str;
 }
 
-int createQueue(key_t key){
-	int queue = msgget(key, IPC_CREAT | 0640 | IPC_PRIVATE);
-	if(queue == -1) {
+void strclear(char *m){
+	int s = strlen(m);
+	for(int i = 0; i < s ; i++ ){
+		m[i] = (char)0;
+	}
+}
+
+mqd_t openQueue(char *queuePath, int openMode){
+	mqd_t resultDesc = 0;
+	if(openMode & O_CREAT) {
+		mode_t mode = 0600;
+		struct mq_attr *attr = malloc(sizeof(struct mq_attr));
+		attr->mq_curmsgs = 0;
+		attr->mq_flags = 0;
+		attr->mq_maxmsg = 10;
+		attr->mq_msgsize = MSGBUF_SIZE;
+		resultDesc = mq_open(queuePath, openMode, mode, attr);
+	} else {
+		resultDesc = mq_open(queuePath, openMode);
+	}
+	if(resultDesc == -1) {
 		printf("Cannot create queue\n");
 		exit(1);
 	}
-	return queue;
+	return resultDesc;
 }
 
-void removeQueue(int queue) {
-	msgctl(queue, IPC_RMID, NULL);
+void removeQueue(char *name) {
+	mq_unlink(name);
 }
 
 commandLine* processLineToCommandLine(char *line){

@@ -9,85 +9,72 @@
 #include <linux/msg.h>
 #include <linux/ipc.h>
 #include <string.h>
+#include <mqueue.h>
 #include "header.h"
+#include <errno.h>
 
 int queues[MAX_CLIENT_NUMBER];
 int clients;
-int queue;
+mqd_t queue;
+void quit(int a);
 
-void clearMsgbuf(struct msgbuf *msgbuf){
-	memcpy(msgbuf->mtext, "", MSGBUF_SIZE);
-}
-
-void addClient(struct msgbuf *msgbuf) {
-	int keyNumber = atoi(msgbuf->mtext);
-	int candidateQueue = msgget(keyNumber, 0);
+void addClient(commandLine *receivedMessage) {
+	//opening candidate queue
+	char *queuePath = calloc(16, 1);
+	strcpy(queuePath, "/");
+	strcat(queuePath, receivedMessage->array[1]);
+	int candidateQueue = openQueue(queuePath, O_WRONLY);
 	if(candidateQueue == -1) {
 		printf("Cannot open client queue\n");
 	} else {
+		//register or reject
+		char *message = calloc(MSGBUF_SIZE, 1);
 		if(clients < MAX_CLIENT_NUMBER){
-			msgbuf -> mtype = 1;
-			char *buf = malloc(128);
-			strcpy(msgbuf->mtext, Itoa(clients, buf, 10));
-
+			Itoa(clients, message, 10);
 			queues[clients] = candidateQueue;
 			clients++;
-			free(buf);
 		} else {
-			msgbuf->mtype = 2;
+			strcpy(message, "NO");
 		}
-		if(msgsnd(candidateQueue, msgbuf, MSGBUF_SIZE, 0) == -1)
+		if(mq_send(candidateQueue, message, strlen(message), 0) == -1)
 			printf("Error during sending...\n");
-		msgbuf ->mtype = 1;
 	}
 }
 
-void mirror(struct msgbuf *msgbuf, int receivedChars){
+void mirror(commandLine *line, char *message){
 	//who send
-	char *buf = malloc(MSGBUF_SIZE - 16);
-	memcpy(buf, msgbuf->mtext, 16);
-	int clientID = atoi(buf);
+	int clientID = atoi(line->array[1]);
 	//what
-	int textLen = strlen(msgbuf->mtext) - 16;
-	memcpy(buf, msgbuf->mtext + 16, textLen);
+	char *buffer = strstr(message, line->array[2]);
 	//mirror
+	int textLen = strlen(buffer);
 	char c;
 	for(int i = 0, j = textLen - 1; i < j; i++, j--){	//miejsce błędogenne
-		c = buf[i];
-		buf[i] = buf[j];
-		buf[j] = c;
+		c = buffer[i];
+		buffer[i] = buffer[j];
+		buffer[j] = c;
 	}
 	//send
-	clearMsgbuf(msgbuf);
-	memcpy(msgbuf->mtext, buf, textLen);
-	msgsnd(queues[clientID], msgbuf, MSGBUF_SIZE, 0, 0);
-	free(buf);
+	mq_send(queues[clientID], buffer, strlen(buffer), 0);
 }
 
-void sendTime(struct msgbuf *msgbuf){
+void sendTime(commandLine *line){
 	//who send
-	char *buf = malloc(MSGBUF_SIZE - 16);
-	memcpy(buf, msgbuf->mtext, 16);
-	int clientID = atoi(buf);
+	int clientID = atoi(line->array[1]);
 	//get date
-	fread(buf, 1, MSGBUF_SIZE - 16, popen("date", "r"));
+	char *buffer = calloc(MSGBUF_SIZE, 1);
+	fread(buffer, 1, MSGBUF_SIZE, popen("date", "r"));
 	//send
-	strcpy(msgbuf->mtext, buf);
-	msgsnd(queues[clientID], msgbuf, MSGBUF_SIZE, 0, 0);
-	free(buf);
+	mq_send(queues[clientID], buffer, MSGBUF_SIZE, 0);
+	free(buffer);
 }
 
-void calc(struct msgbuf *msgbuf, int receivedChars) {
-	char *buf = malloc(MSGBUF_SIZE - 16);
-	memcpy(buf, msgbuf->mtext, 16);
-	int clientID = atoi(buf);
-	free(buf);
+void calc(commandLine *line) {
+	int clientID = atoi(line->array[0]);
 
-	commandLine *expression = processLineToCommandLine(msgbuf -> mtext + 16);
-
-	int a = atoi(expression->array[0]);
-	int b = atoi(expression->array[2]);
-	char sign = expression->array[1][0];
+	int a = atoi(line->array[2]);
+	int b = atoi(line->array[4]);
+	char sign = line->array[3][0];
 	int result;
 	switch(sign) {
 		case '+':
@@ -104,64 +91,68 @@ void calc(struct msgbuf *msgbuf, int receivedChars) {
 		break;
 	}
 
-	cleanCommandLine(expression);
+	char *buffer = calloc(MSGBUF_SIZE, 1);
 
-	buf = malloc(32);
-
-	strcpy(msgbuf->mtext, Itoa(result, buf, 10));
-	msgsnd(queues[clientID], msgbuf, MSGBUF_SIZE, 1);
-	free(buf);
+	Itoa(result, buffer, 10);
+	mq_send(queues[clientID], buffer, MSGBUF_SIZE, 0);
+	free(buffer);
 }
 
-
-void receiver(int queue){
-	struct msgbuf *msgbuf = malloc(sizeof(struct msgbuf) + MSGBUF_SIZE);
+void receiver(){
 	int receivedChars;
-	int flags = 0;
-	while((receivedChars = msgrcv(queue, msgbuf, MSGBUF_SIZE, 0, 0 | flags)) != -1){
-		
+	char *message = malloc(MSGBUF_SIZE + 1);
+	struct timespec waitTime;
+	waitTime.tv_sec = time(NULL) + 10;
+	waitTime.tv_nsec = 0;
+	
+	while((receivedChars = mq_timedreceive(queue, message, MSGBUF_SIZE + 1, NULL, &waitTime)) != -1){
 		if(receivedChars == -1) {
 			printf("Cannot read from queue\n");
 			exit(1);
-		}
+		} else {
+			commandLine *processedMessage = processLineToCommandLine(message);
+			if(processedMessage->arraySize != 0 && strcmp(processedMessage->array[0], "ADD") == 0){
+				addClient(processedMessage);
+			}
 
-		if(msgbuf -> mtype == ADD_CLIENT){
-			addClient(msgbuf);
-		}
+			if(0 == strcmp(processedMessage->array[1], "END")) {
+				waitTime.tv_nsec = 0;
+				waitTime.tv_sec = 0;
+			} else {
+				waitTime.tv_sec = time(NULL) + 10;
+			}
 
-		if(msgbuf -> mtype == END) {
-			flags = IPC_NOWAIT;
-		}
+			if(0 == strcmp(processedMessage->array[1], "MIRROR")) {
+				mirror(processedMessage, message);
+			}
 
-		if(msgbuf -> mtype == MIRROR) {
-			mirror(msgbuf, receivedChars);
-		}
+			if(0 == strcmp(processedMessage->array[1], "CALC")) {
+				calc(processedMessage);
+			}
 
-		if(msgbuf -> mtype == CALC) {
-			calc(msgbuf, receivedChars);
-		}
-
-		if(msgbuf -> mtype == TIME) {
-			sendTime(msgbuf);
+			if(0 == strcmp(processedMessage->array[1], "DATE")) {
+				sendTime(processedMessage);
+			}
 		}
 
 	}
-
 	quit(0);
 }
 
 void quit(int a){
-	removeQueue(queue);
+	char *path = "/SERVER";
+	removeQueue(path);
 	exit(0);
 }
 
 int main(int args, char *argv[]) {
-	clients = 0;
-	char *homedir = getenv("HOME");
-	key_t key = ftok(homedir, PROJECT_NUMBER);
-	signal(SIGINT, &quit);
-	queue = createQueue(key);
-	receiver(queue);
 	
+	clients = 0;
+	signal(SIGINT, &quit);
+	char *path = "/SERVER";
+	queue = openQueue(path, O_CREAT | O_RDONLY);
+	
+	receiver(path);
+
 	return 0;
 }
