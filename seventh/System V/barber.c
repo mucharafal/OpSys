@@ -1,3 +1,8 @@
+#define _POSIX_C_SOURCE 20000000
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
@@ -8,14 +13,12 @@
 #include <mqueue.h>
 #include <errno.h>
 #include <sys/sem.h>
+//queue
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 
-union semun {
-    int 			val;    /* Value for SETVAL */
-    struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
-    unsigned short  *array;  /* Array for GETALL, SETALL */
-    struct seminfo  *__buf;  /* Buffer for IPC_INFO
-                                           (Linux-specific) */
-};
+#include "header.h"
 
 
 int main(int args, char *argv[]){
@@ -26,25 +29,66 @@ int main(int args, char *argv[]){
 
 	int N = atoi(argv[1]);
 
-	key_t key = ftok("./GoInside", 's');
-	int semGoInside = semget(key, 1, 0600 | IPC_CREAT);
-	semctl(semGoInside, 0, SETVAL, N + 1);
+	//signal(SIGTERM, &handler);
 
-	key = ftok("./Corridor", 's');
-    int semCorridor = semget(key, 1, 0600 | IPC_CREAT);
-	semctl(semCorridor, 0, SETVAL, 1);
-	
-    key = ftok("./SleepingBarber", 's');
-    int semSleepingBarber = semget(key, 1, 0600 | IPC_CREAT);
-	semctl(semSleepingBarber, 0, SETVAL, 10);
-	
-	//N waiting and one cut
+	key_t key = ftok(".", 's');
+	int semaphores = semget(key, 7 + N, 0600 | IPC_CREAT);
+	for(int i = 0;i < 7 + N;i++ )	semctl(semaphores, i, SETVAL, 0);
 
+	semctl(semaphores, LIMIT_WAITING_CLIENTS, SETVAL, N);
+
+	key = ftok("./barber.c", 's');
+    int queue = msgget(key, 0600 | IPC_CREAT);
+
+	//Open!
     struct sembuf sops[1];
-	sops[0].sem_num = 0;
+	sops[0].sem_num = CORRIDOR;
 	sops[0].sem_op = 1;
 	sops[0].sem_flg = 0;
-	semop(semGoInside, sops, 1);
+	semop(semaphores, sops, 1);
+	sops[0].sem_num = WAKE_BARBER;
+	sops[0].sem_op = -1;
+	sops[0].sem_flg = 0;
+	semop(semaphores, sops, 1);
+
+	printf("Open!\n");
+
+	while(1) {
+		struct msgbuf *msgbuf;
+		msgbuf = malloc(sizeof(struct msgbuf));
+		msgrcv(queue, msgbuf, 0, 0, 0);
+		long pid = msgbuf -> mtype;
+		
+		free(msgbuf);
+
+		printf("Pid: %li\n", pid);
+
+		printTime("Barber, before cutting");
+		goIn(semaphores, BARBER_CHAIR);
+		printTime("Barber, during cutting");
+		incSemaphore(semaphores, END_OF_CUTTING);
+		printTime("Barber, after cutting");
+
+		goIn(semaphores, CORRIDOR);
+		printTime("Barber, corridor");
+		int waitingCustomers = semctl(semaphores, WAITING_CLIENTS, GETVAL);
+		printf("Waiting clients: %i\n", waitingCustomers);
+		if(waitingCustomers > 0){
+			//waiting room
+			printf("Taking from waiting room\n");
+			incSemaphore(semaphores, WAITING_ROOM_QUEUE);
+			goIn(semaphores, WAITING_CLIENTS);
+			incSemaphore(semaphores, CORRIDOR);
+			printf("Barber: end of cutting\n");
+		} else {
+			//release corridor and go sleep
+			printf("Sleep, yea...\n");
+			goIn(semaphores, SLEEPING_BARBER);
+			incSemaphore(semaphores, CORRIDOR);
+			goIn(semaphores, WAKE_BARBER);
+		}
+		printTime("Barber, after choosing client");
+	}
 
     printf("Semaphore up, I can go!\n");
     return 0;
