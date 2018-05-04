@@ -1,5 +1,7 @@
 #define _POSIX_C_SOURCE 20000000
 
+//#define VERBOSE 1
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -20,6 +22,14 @@
 
 #include "header.h"
 
+int semaphores;
+int queue;
+
+void handler(int a){
+	semctl(semaphores, 0, IPC_RMID);
+	msgctl(queue, IPC_RMID, NULL);
+	exit(0);
+}
 
 int main(int args, char *argv[]){
 	/*
@@ -29,16 +39,16 @@ int main(int args, char *argv[]){
 
 	int N = atoi(argv[1]);
 
-	//signal(SIGTERM, &handler);
+	signal(SIGINT, &handler);
 
 	key_t key = ftok(".", 's');
-	int semaphores = semget(key, 7 + N, 0600 | IPC_CREAT);
+	semaphores = semget(key, 7 + N, 0600 | IPC_CREAT);
 	for(int i = 0;i < 7 + N;i++ )	semctl(semaphores, i, SETVAL, 0);
 
 	semctl(semaphores, LIMIT_WAITING_CLIENTS, SETVAL, N);
 
 	key = ftok("./barber.c", 's');
-    int queue = msgget(key, 0600 | IPC_CREAT);
+    queue = msgget(key, 0600 | IPC_CREAT);
 
 	//Open!
     struct sembuf sops[1];
@@ -51,8 +61,9 @@ int main(int args, char *argv[]){
 	sops[0].sem_flg = 0;
 	semop(semaphores, sops, 1);
 
+	#ifdef VERBOSE
 	printf("Open!\n");
-
+	#endif
 	while(1) {
 		struct msgbuf *msgbuf;
 		msgbuf = malloc(sizeof(struct msgbuf));
@@ -60,36 +71,50 @@ int main(int args, char *argv[]){
 		long pid = msgbuf -> mtype;
 		
 		free(msgbuf);
-
+		#ifdef VERBOSE
 		printf("Pid: %li\n", pid);
 
 		printTime("Barber, before cutting");
+		#endif
 		goIn(semaphores, BARBER_CHAIR);
+		#ifdef VERBOSE
 		printTime("Barber, during cutting");
+		#endif
 		incSemaphore(semaphores, END_OF_CUTTING);
+		#ifdef VERBOSE
 		printTime("Barber, after cutting");
+		#endif
 
 		goIn(semaphores, CORRIDOR);
+		#ifdef VERBOSE
 		printTime("Barber, corridor");
+		#endif
 		int waitingCustomers = semctl(semaphores, WAITING_CLIENTS, GETVAL);
+		#ifdef VERBOSE
 		printf("Waiting clients: %i\n", waitingCustomers);
+		#endif
 		if(waitingCustomers > 0){
 			//waiting room
+			#ifdef VERBOSE
 			printf("Taking from waiting room\n");
+			#endif
 			incSemaphore(semaphores, WAITING_ROOM_QUEUE);
-			goIn(semaphores, WAITING_CLIENTS);
 			incSemaphore(semaphores, CORRIDOR);
+			#ifdef VERBOSE
 			printf("Barber: end of cutting\n");
+			#endif
 		} else {
 			//release corridor and go sleep
+			#ifdef VERBOSE
 			printf("Sleep, yea...\n");
+			#endif
 			goIn(semaphores, SLEEPING_BARBER);
 			incSemaphore(semaphores, CORRIDOR);
 			goIn(semaphores, WAKE_BARBER);
 		}
+		#ifdef VERBOSE
 		printTime("Barber, after choosing client");
+		#endif
 	}
-
-    printf("Semaphore up, I can go!\n");
     return 0;
 }

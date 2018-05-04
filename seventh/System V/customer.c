@@ -1,5 +1,7 @@
 #define _POSIX_C_SOURCE 20000000
 
+//#define VERBOSE 1
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -48,14 +50,15 @@ int main(int args, char *argv[]){
         //test śpiącego golibrody
 
         int val = semctl(semaphores, SLEEPING_BARBER, GETVAL);
-        printf("Sleeping barber: %i\n", val);
         if(val == 0){
             incSemaphore(semaphores, SLEEPING_BARBER);
 
             //wyślij sygnał - przez kolejkę?
             struct msgbuf msgbuf;
             msgbuf.mtype = getpid();
+            #ifdef VERBOSE
             printf("Pid: %li\n", msgbuf.mtype);
+            #endif
             msgsnd(queue, &msgbuf, 0, 0);
 
             incSemaphore(semaphores, WAKE_BARBER);
@@ -71,7 +74,6 @@ int main(int args, char *argv[]){
         } else {
             //waiting room
             //sprawdź liczbę osób w poczekalni
-            printf("In waiting room\n");
             int customersNumberInWR = semctl(semaphores, WAITING_CLIENTS, GETVAL);
             int limitCustomersNumberInWR = semctl(semaphores, LIMIT_WAITING_CLIENTS, GETVAL);
             if(customersNumberInWR < limitCustomersNumberInWR) {
@@ -92,8 +94,17 @@ int main(int args, char *argv[]){
                 
                 //po zwolnieniu przechodź na następne
                 //przetestować poprawność liczników
-                for(int i = 0;i <= customersNumberInWR;i++){
-                    
+                for(int i = 0;i < customersNumberInWR;i++){
+                    int next = WAITING_ROOM_QUEUE + customersNumberInWR - 1 - i;
+                    int prev = WAITING_ROOM_QUEUE + customersNumberInWR + 1 - i;
+                    printf("Pid: %li, next: %i, prev %i\n", getpid(), next, prev);
+                    if(prev < limitCustomersNumberInWR + WAITING_ROOM_QUEUE){
+                        incSemaphore(semaphores, prev);
+                    }
+                    if(next - WAITING_ROOM_QUEUE >= 0) {
+                        goIn(semaphores, next);
+                    }
+                    /*
                     //błędy! odwołania poza semafory? i w ogóle to ogarnąć...
                     if(customersNumberInWR - i - 1 >= 0) {
                         incSemaphore(semaphores, customersNumberInWR - i + 1 + WAITING_ROOM_QUEUE);  //problem z rozbiciem kolejki w poczekalni i corridora na dwie grupy semaforów
@@ -101,8 +112,16 @@ int main(int args, char *argv[]){
                     } else {
                         incSemaphore(semaphores, WAITING_ROOM_QUEUE + 1);
                     }
+                    */
                 }
-
+                printTime("After for loop");
+                goIn(semaphores, CORRIDOR);
+                goIn(semaphores, WAITING_CLIENTS);
+                customersNumberInWR = semctl(semaphores, WAITING_CLIENTS, GETVAL);
+                if(!(limitCustomersNumberInWR <= 1 || customersNumberInWR == 0)) {
+                    incSemaphore(semaphores, WAITING_ROOM_QUEUE + 1);
+                }
+                incSemaphore(semaphores, CORRIDOR);
                 //zająć fotel
                 printTime("Customer, before cutting");
                 incSemaphore(semaphores, BARBER_CHAIR);
