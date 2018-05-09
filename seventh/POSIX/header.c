@@ -1,4 +1,9 @@
+#define POSIX_C_SOURCE 2000000
+
 #include "header.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 int addElement(fifo *queue, long element){
 	if(queue->numberElements == queue->length)	return -1;
@@ -55,5 +60,8 @@ char* Itoa(long int value, char* str, int radix) {
     return str;
 }
 
-
-
+void printTime(char *name){
+	struct timespec time;
+	clock_gettime(CLOCK_MONOTONIC, &time);
+	printf("%s; pid: %li, time %i,%li sec\n", name, getpid(), time.tv_sec, time.tv_nsec / 1000);
+}

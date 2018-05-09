@@ -32,6 +32,15 @@ long *openPidBufer(){
 	return (long*)mmap(NULL, sizeof(long), PROT_READ | PROT_WRITE, MAP_SHARED, des, 0);
 }
 
+void closeAll(sem_t **semaphores, fifo *queue, long *pid){
+	for(int i = 0;i <= END_OF_CUTTING;i++)	sem_close(semaphores[i]);
+
+	int sizefifo = sizeof(fifo) + sizeof(long) * queue->length;
+	munmap(queue, sizefifo);
+	
+	munmap(pid, sizeof(long));
+}
+
 
 int main(int args, char *argv[]){
 	if(args < 3)	return 0;
@@ -39,8 +48,12 @@ int main(int args, char *argv[]){
 	int N = atoi(argv[1]);
 	int S = atoi(argv[2]);
 
-	for(int i = 0;i < N;i++){
-		if(fork() == 0)	break;
+	int child = 1;
+	for(int i = 0;i < N - 1;i++){
+		if(fork() == 0)	{
+			child = 0;
+			break;
+		}
 	}
 
 	fifo *queue = openQueue();
@@ -59,20 +72,25 @@ int main(int args, char *argv[]){
 			sem_post(semaphores[SLEEPING_BARBER]);
 			sem_post(semaphores[WAKE_BARBER]);
 			sem_post(semaphores[CORRIDOR]);
+			printTime("Before cutting");
 			sem_post(semaphores[BARBER_CHAIR]);
+			printTime("During cutting");
 			sem_wait(semaphores[END_OF_CUTTING]);
+			printTime("After cutting without queue...");
 			i++;
 		} else {
 			if(queue->numberElements < queue->length){
-
+				printTime("In queue");
 				addElement(queue, getpid());
 
-				char *path = "/";
+				char *path = calloc(18, 1);
+				strcpy(path, "/");
 				char *charPid = Itoa(getpid(), calloc(16, 1), 10);
 				strcat(path, charPid);
+				printf("%s\n", path);
 				sem_t *sem = sem_open(path, O_RDWR | O_CREAT, 0600, 0);
-
 				sem_post(semaphores[CORRIDOR]);
+				printTime("I'm waiting...");
 
 				sem_wait(sem);
 
@@ -80,10 +98,18 @@ int main(int args, char *argv[]){
 				sem_unlink(path);
 
 				sem_post(semaphores[BARBER_CHAIR]);
+				printTime("Before cutting");
+				sem_post(semaphores[BARBER_CHAIR]);
+				printTime("During cutting");
 				sem_wait(semaphores[END_OF_CUTTING]);
+				printTime("After cutting without queue...");
 				i++;
+			} else {
+				//printTime("Queue is full");
+				sem_post(semaphores[CORRIDOR]);
 			}
 		}
 	}
+	closeAll(semaphores, queue, pidBufer);
 	return 0;
 }

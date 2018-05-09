@@ -6,6 +6,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+
+sem_t **semaphores;
+int N;
+fifo *queue;
+long *pid;
 
 fifo *createFifo(int N){
 	int des = shm_open("/fifo", O_RDWR | O_CREAT, 0600);
@@ -19,14 +27,13 @@ fifo *createFifo(int N){
 	return result;
 }
 
-sem_t **createSemaphores(){
-	sem_t **semaphores = malloc(sizeof(sem_t*) * 5);
+void createSemaphores(){
+	semaphores = malloc(sizeof(sem_t*) * 5);
 	semaphores[CORRIDOR] = sem_open("/CORRIDOR", O_RDWR | O_CREAT, 0600, 0);
 	semaphores[SLEEPING_BARBER] = sem_open("/SLEEPING_BARBER", O_RDWR | O_CREAT, 0600, 0);
 	semaphores[WAKE_BARBER] = sem_open("/WAKE_BARBER", O_RDWR | O_CREAT, 0600, 0);
 	semaphores[BARBER_CHAIR] = sem_open("/BARBER_CHAIR", O_RDWR | O_CREAT, 0600, 0);
 	semaphores[END_OF_CUTTING] = sem_open("/END_OF_CUTTING", O_RDWR | O_CREAT, 0600, 0);
-	return semaphores;
 }
 
 long *createPidBufer(){
@@ -39,47 +46,75 @@ long *createPidBufer(){
 	return result;
 } 
 
+void handler(int a){
+	sem_close(semaphores[CORRIDOR]);
+	sem_unlink("/CORRIDOR");
+	sem_close(semaphores[SLEEPING_BARBER]);
+	sem_unlink("/SLEEPING_BARBER");
+	sem_close(semaphores[WAKE_BARBER]);
+	sem_unlink("/WAKE_BARBER");
+	sem_close(semaphores[BARBER_CHAIR]);
+	sem_unlink("/BARBER_CHAIR");
+	sem_close(semaphores[END_OF_CUTTING]);
+	sem_unlink("/END_OF_CUTTING");
+	free(semaphores);
+	int sizefifo = sizeof(fifo) + sizeof(long) * N;
+	munmap(queue, sizefifo);
+	shm_unlink("/fifo");
+	munmap(pid, sizeof(long));
+	shm_unlink("/pidBufer");
+	exit(0);
+}
+
+
 int main(int argv, char *args[]){
 	if(argv < 2)	return 0;
 	//N- length of queue
-	int N = atoi(args[1]);
+	N = atoi(args[1]);
 
-	fifo *queue = createFifo(N);
+	queue = createFifo(N);
 
-	long *pid = createPidBufer();
+	pid = createPidBufer();
 
-	sem_t **semaphores = createSemaphores();
+	createSemaphores();
+
+	signal(SIGINT, &handler);
 
 	//open!
+	printTime("Opened");
 	sem_post(semaphores[CORRIDOR]);
 	sem_wait(semaphores[WAKE_BARBER]);
-
+	printTime("First client...");
 	while(1){
 
 		printf("Pid: %li\n", *pid);
 
 		sem_wait(semaphores[BARBER_CHAIR]);
-
+		printTime("After taking the chair");
 		sem_post(semaphores[END_OF_CUTTING]);
-
+		printTime("After cutting");
 		sem_wait(semaphores[CORRIDOR]);
 		if(queue->numberElements <= 0){
-			printf("Sleep\n");
+			printTime("Sleep");
 			//sleep
 			sem_wait(semaphores[SLEEPING_BARBER]);
 			sem_post(semaphores[CORRIDOR]);
 			sem_wait(semaphores[WAKE_BARBER]);
+			printTime("Woken");
 		} else {
-			printf("Taking from queue\n");
+			printTime("Taking from queue");
 			long pidFromQueue = takeElement(queue);
-			char *path = "/";
+			char *path = calloc(18, 1);
+			strcpy(path, "/");
 			char *charPid = Itoa(pidFromQueue, calloc(16, 1), 10);
 			strcat(path, charPid);
+			printf("Waking client: %s\n", path);
 			sem_t *sem = sem_open(path, O_RDWR);
 			sem_post(sem);
 			*pid = pidFromQueue;
 			sem_close(sem);
 			sem_post(semaphores[CORRIDOR]);
+			free(path);
 		}
 	}
 

@@ -18,5 +18,6 @@ typedef struct{
 int addElement(fifo *queue, long element);
 long takeElement(fifo *queue);
 char *Itoa(long value, char *str, int radix);
+void printTime(char *name);
 
 #endif
