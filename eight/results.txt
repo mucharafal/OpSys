@@ -1,0 +1,74 @@
+Normal optimisation
+c = 3
+Threads: 1
+Time: 0 s, 58355258 
+Threads: 2
+Time: 0 s, 32046704 
+Threads: 4
+Time: 0 s, 25814250 
+Threads: 8
+Time: 0 s, 13222027 
+c = 11
+Threads: 1
+Time: 0 s, 726800845 
+Threads: 2
+Time: 0 s, 381456864 
+Threads: 4
+Time: 0 s, 205070464 
+Threads: 8
+Time: 0 s, 176863585 
+c = 21
+Threads: 1
+Time: 2 s, 682486807 
+Threads: 2
+Time: 1 s, 392698213 
+Threads: 4
+Time: 0 s, 706881445 
+Threads: 8
+Time: 0 s, 651190379 
+c = 55
+Threads: 1
+Time: 17 s, 745313823 
+Threads: 2
+Time: 9 s, 498106257 
+Threads: 4
+Time: 5 s, 276413035 
+Threads: 8
+Time: 4 s, 934196507 
+O2 optimisation
+c = 3
+Threads: 1
+Time: 0 s, 62901909 
+Threads: 2
+Time: 0 s, 32145303 
+Threads: 4
+Time: 0 s, 17336394 
+Threads: 8
+Time: 0 s, 23658399 
+c = 11
+Threads: 1
+Time: 0 s, 779460751 
+Threads: 2
+Time: 0 s, 405409090 
+Threads: 4
+Time: 0 s, 237954574 
+Threads: 8
+Time: 0 s, 219321312 
+c = 21
+Threads: 1
+Time: 2 s, 782187834 
+Threads: 2
+Time: 1 s, 398304445 
+Threads: 4
+Time: 0 s, 730621688 
+Threads: 8
+Time: 0 s, 727539229 
+c = 55
+Threads: 1
+Time: 17 s, 311076151 
+Threads: 2
+Time: 9 s, 162769765 
+Threads: 4
+Time: 4 s, 862013405 
+Threads: 8
+Time: 4 s, 416795674 
