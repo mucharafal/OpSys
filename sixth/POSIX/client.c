@@ -4,20 +4,14 @@
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <time.h>
 #include <sys/wait.h>
-#include <linux/msg.h>
-#include <linux/ipc.h>
 #include <mqueue.h>
 #include <string.h>
 #include "header.h"
 #include <errno.h>
 
 
-int connectWithServer(int *serverQueue, int *clientQueue, int *clientID){
-	int result;
-
-	//opening client queue
+char* getQueuePath(){
 	char *queuePath = calloc(12, 1);
 	strcpy(queuePath, "/");
 
@@ -25,6 +19,14 @@ int connectWithServer(int *serverQueue, int *clientQueue, int *clientID){
 	strcat(queuePath, Itoa(getpid(), buffer, 10));
 
 	free(buffer);
+	return queuePath;
+}
+
+int connectWithServer(int *serverQueue, int *clientQueue, int *clientID){
+	int result;
+
+	//opening client queue
+	char *queuePath = getQueuePath();
 
 	*clientQueue = openQueue(queuePath, O_CREAT | O_RDONLY);
 
@@ -73,6 +75,7 @@ int connectWithServer(int *serverQueue, int *clientQueue, int *clientID){
 		}
 	}
 
+	free(message);
 	free(buf);
 	return result;
 }
@@ -88,7 +91,6 @@ void processFile(char *fileName, int server, int client, int clientID){
 	FILE* file = fopen(fileName, "r");
 	int lineLength;
 	while(fgets(buf, BUFFERSIZE, file)){
-		int wasContentInLine = 1;
 		commandLine *line = processLineToCommandLine(buf);
 		if(line->array[0] == 0)	continue;
 
@@ -98,7 +100,7 @@ void processFile(char *fileName, int server, int client, int clientID){
 		strcat(message, buf);
 
 		mq_send(server, message, MSGBUF_SIZE, 0);
-		if(strcmp(line->array[0], "END") != 0 && wasContentInLine){
+		if(strcmp(line->array[0], "END") != 0){
 			strclear(message);
 			mq_receive(client, message, MSGBUF_SIZE, 0);
 			printf("Received: %s\n", message);
@@ -116,16 +118,12 @@ int main(int args, char *argv[]) {
 	int server, client, clientID;
 
 	if(connectWithServer(&server, &client, &clientID))
-		processFile(argv[1], server, client, clientID);
+		processFile(argv[1], server, client, clientID);	
 
-	char *queuePath = calloc(12, 1);
-	strcpy(queuePath, "/");
+	mq_close(client);
+	mq_close(server);
 
-	char *buffer = malloc(11);
-	strcat(queuePath, Itoa(getpid(), buffer, 10));
+	removeQueue(getQueuePath());
 
-	free(buffer);
-
-	removeQueue(queuePath);
 	return 0;
 }

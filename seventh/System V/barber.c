@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 20000000
 
-//#define VERBOSE 1
+#define VERBOSE 1
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -18,16 +18,31 @@
 //queue
 #include <sys/types.h>
 #include <sys/ipc.h>
-#include <sys/msg.h>
+#include <sys/shm.h>
+#include <sys/mman.h>
 
 #include "header.h"
 
 int semaphores;
-int queue;
+int queueDes;
+fifo *queue;
+
+fifo *createFifo(int N){
+	int size = sizeof(fifo) + sizeof(long) * N;
+	key_t key = ftok("./barber.c", 's');
+	queueDes = shmget(key, size, IPC_CREAT | 0600);
+	void *addr = shmat(queueDes, NULL, SHM_RND);
+	fifo *result = (fifo*)addr;
+	result->length = N;
+	result->numberElements = 0;
+	result->firstElement = 0;
+	return result;
+}
 
 void handler(int a){
 	semctl(semaphores, 0, IPC_RMID);
-	msgctl(queue, IPC_RMID, NULL);
+	shmdt(queue);
+	shmctl(queueDes, IPC_RMID, NULL);
 	exit(0);
 }
 
@@ -47,8 +62,7 @@ int main(int args, char *argv[]){
 
 	semctl(semaphores, LIMIT_WAITING_CLIENTS, SETVAL, N);
 
-	key = ftok("./barber.c", 's');
-    queue = msgget(key, 0600 | IPC_CREAT);
+    queue = createFifo(N);
 
 	//Open!
     struct sembuf sops[1];
@@ -65,12 +79,8 @@ int main(int args, char *argv[]){
 	printf("Open!\n");
 	#endif
 	while(1) {
-		struct msgbuf *msgbuf;
-		msgbuf = malloc(sizeof(struct msgbuf));
-		msgrcv(queue, msgbuf, 0, 0, 0);
-		long pid = msgbuf -> mtype;
-		
-		free(msgbuf);
+		long pid = takeElement(queue);
+
 		#ifdef VERBOSE
 		printf("Pid: %li\n", pid);
 

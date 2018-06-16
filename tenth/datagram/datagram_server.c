@@ -1,0 +1,244 @@
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/epoll.h>
+#define POSIX_C_SOURCE = 199309L
+#include <time.h>
+#include <pthread.h>
+
+#include "datagram_connection_lib.h"
+
+#define MAX_EVENTS 1
+#define NAME_LENGTH 108
+#define CLIENTS_MAX 128
+#define UNIX_MAX_SUNPATH 108
+extern int errno ;
+
+int fd, fd1;
+char *unix_path;
+
+#define PRESENT 0
+#define REGISTER 1
+#define CALCULATES_RESULT 2
+
+#define REPORT 0
+
+typedef struct{
+	int socket_type;
+	char client_name[NAME_LENGTH];
+	int fd;
+	int last_used;
+}connection;
+
+int clients_number;
+connection clients_list[CLIENTS_MAX];
+
+int create_inet_socket(int socket_type, int port);
+int create_unix_socket(int socket_type, char *bind_path);
+int interpret_message(message *m, int size);
+
+void close_sockets(int a){
+	close(fd);
+	close(fd1);
+	unlink(unix_path);
+	exit(0);
+}
+
+void *receiver(void *epollfdp){
+	int epollfd = *((int*)epollfdp);
+	struct epoll_event events[MAX_EVENTS];
+	while(1){
+		int nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+		if (nfds == -1) {
+			perror("epoll_wait");
+			exit(EXIT_FAILURE);
+		}
+		int fd_read = events[0].data.fd;
+		char buf[1024];
+		socklen_t len = sizeof(struct sockaddr_in);
+		int readed_bytes = read(fd_read, buf, 1024);
+		interpret_message((message*)buf, readed_bytes);
+	}
+}
+
+int register_presence(message *m){
+	char *client_name = m->message;
+	int i = 0;
+	int found = 0;
+	for(;i < CLIENTS_MAX;i++){
+		if(strcmp(client_name, clients_list[i].client_name)==0){
+			found = 1;
+			break;
+		}
+	}
+	if(found){
+		clients_list[i].last_used = 1;
+	}
+	return i;
+}
+
+void add_client(message *m){
+	if(CLIENTS_MAX <= clients_number){
+		//error, cannot register
+		return;
+	}
+	char *client_name = m->message;
+	int i = 0;
+	int found = 0;
+	for(;i < CLIENTS_MAX;i++){
+		if(clients_list[i].fd == -1){
+			found = 1;
+			break;
+		}
+	}
+	if(found){
+		connection *slot = &clients_list[i];
+
+		slot->last_used = 1;
+		strcpy(slot->client_name, client_name);
+		slot->socket_type = m->socket_type;
+		if(slot->socket_type == AF_UNIX){
+			slot->fd = connect_with_unix_socket(&(m->message[m->client_message_pointer]));
+		} else {
+			printf("Inet\n");
+			slot->fd = connect_with_inet_socket(atoi(&(m->message[m->client_message_pointer])));
+			printf("FD Inet: %i\n", slot->fd);
+		}
+
+		clients_number++;	//if it should be thread safe, this statement should be on begin 
+	}
+}
+
+int interpret_message(message *m, int size){
+	int client_number;
+	switch(m->message_type){
+		case PRESENT:
+			register_presence(m);
+			break;
+		case REGISTER:
+		printf("adding client\n");
+			add_client(m);
+			break;
+		case CALCULATES_RESULT:
+			client_number = register_presence(m);
+			if(client_number == CLIENTS_MAX){
+				printf("Unregistered client send: %s", &(m->message[m->client_message_pointer]));
+			}
+			printf("From %i, received: %s\n", clients_list[client_number].client_name, &(m->message[m->client_message_pointer]));
+			break;
+	}
+}
+
+void add_fd_to_epoll(int fd, int epollfd){
+	struct epoll_event ev;
+
+	ev.events = EPOLLIN | EPOLLET;
+	ev.data.fd = fd;
+
+	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
+		perror("epoll_ctl1: listen_sock");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void send_to(connection *client, int message_type, char *message_text){
+	int fd = client->fd;
+	message *m = malloc(sizeof(message));
+	m->message_type = message_type;
+	memcpy(m->message, message_text, 512);
+	write(fd, m, sizeof(message));
+}
+
+void *conductor(void *p){
+	for(int i = 0;;i = (i + 1) % CLIENTS_MAX){
+		connection *client_slot = &(clients_list[i]);
+		if(client_slot->fd != -1){
+			if(client_slot->last_used == 1){
+				client_slot->last_used = 0;
+				send_to(client_slot, PRESENT, "");
+			} else {
+				printf("Removed %s\n", client_slot->client_name);
+				close(client_slot->fd);
+				client_slot->fd = -1;
+				clients_number--;
+			}
+		}
+		struct timespec sleep_time;
+		sleep_time.tv_sec = 0;
+		sleep_time.tv_nsec = 1000000;
+		nanosleep(&sleep_time, NULL);
+	}
+}
+
+int main(int args, char *argv[]){
+	if(args < 3) {
+		printf("Za malo arg\n");
+		return 1;
+	}
+	int port = atoi(argv[1]);
+	fd1 = create_inet_socket(SOCK_DGRAM, port);
+	fd = create_unix_socket(SOCK_DGRAM, argv[2]);
+	unix_path = argv[2];
+	
+	signal(SIGINT, close_sockets);
+	int epollfd = epoll_create1(0);
+	if (epollfd == -1) {
+		perror("epoll_create1");
+		exit(EXIT_FAILURE);
+	}
+	
+	add_fd_to_epoll(fd, epollfd);
+	add_fd_to_epoll(fd1, epollfd);
+
+	for(int i = 0;i < CLIENTS_MAX;i++){
+		clients_list[i].fd = -1;
+		clients_list[i].last_used = 0;
+		clients_list[i].socket_type = 0;
+	}
+
+	clients_number = 0;
+
+	pthread_t receiver_handler;
+	pthread_create(&receiver_handler, NULL, receiver, (void*)(&epollfd));
+
+	pthread_t conductor_handler;
+	pthread_create(&conductor_handler, NULL, conductor, NULL);
+
+	int clients_pointer = 0;
+	while(1){
+		int a, b;
+		char sign;
+		scanf("%i%c%i", &a, &sign, &b);
+
+		compute_task t;
+		t.a = a;
+		t.b = b;
+		t.sign = sign;
+		char buf[sizeof(compute_task) + 1];
+		memcpy(buf, &t, sizeof(compute_task));
+		buf[sizeof(compute_task)] = 0;
+		
+		int found = 0;
+		for(int i = 0;i < CLIENTS_MAX;i++){
+			clients_pointer = (clients_pointer + 1) % CLIENTS_MAX;
+			if(clients_list[clients_pointer].fd != -1){
+				found = 1;
+				break;
+			}
+		}
+		if(found){
+			send_to(&(clients_list[clients_pointer]), CALCULATES_RESULT, buf);
+		} else {
+			printf("No registered client...\n");
+		}
+	}
+
+	pause();
+}

@@ -10,6 +10,7 @@
 #define CALC 3
 #define TIME 4
 #define END 5
+#define WAIT_TIME 10
 char *Itoa(long int, char*, int);
 int openQueue(char *queuePath, int openMode);
 void removeQueue(char *name);

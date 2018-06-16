@@ -70,8 +70,10 @@ void sendTime(commandLine *line){
 }
 
 void calc(commandLine *line) {
+	//who
 	int clientID = atoi(line->array[0]);
 
+	//parse and compute
 	int a = atoi(line->array[2]);
 	int b = atoi(line->array[4]);
 	char sign = line->array[3][0];
@@ -91,6 +93,7 @@ void calc(commandLine *line) {
 		break;
 	}
 
+	//send
 	char *buffer = calloc(MSGBUF_SIZE, 1);
 
 	Itoa(result, buffer, 10);
@@ -101,41 +104,38 @@ void calc(commandLine *line) {
 void receiver(){
 	int receivedChars;
 	char *message = malloc(MSGBUF_SIZE + 1);
+	//for timedreceive
 	struct timespec waitTime;
-	waitTime.tv_sec = time(NULL) + 10;
+	waitTime.tv_sec = time(NULL) + WAIT_TIME;
 	waitTime.tv_nsec = 0;
 	
 	while((receivedChars = mq_timedreceive(queue, message, MSGBUF_SIZE + 1, NULL, &waitTime)) != -1){
-		if(receivedChars == -1) {
-			printf("Cannot read from queue\n");
-			exit(1);
-		} else {
-			commandLine *processedMessage = processLineToCommandLine(message);
-			if(processedMessage->arraySize != 0 && strcmp(processedMessage->array[0], "ADD") == 0){
-				addClient(processedMessage);
-			}
 
-			if(0 == strcmp(processedMessage->array[1], "END")) {
-				waitTime.tv_nsec = 0;
-				waitTime.tv_sec = 0;
-			} else {
-				waitTime.tv_sec = time(NULL) + 10;
-			}
-
-			if(0 == strcmp(processedMessage->array[1], "MIRROR")) {
-				mirror(processedMessage, message);
-			}
-
-			if(0 == strcmp(processedMessage->array[1], "CALC")) {
-				calc(processedMessage);
-			}
-
-			if(0 == strcmp(processedMessage->array[1], "DATE")) {
-				sendTime(processedMessage);
-			}
+		commandLine *processedMessage = processLineToCommandLine(message);
+		if(processedMessage->arraySize != 0 && strcmp(processedMessage->array[0], "ADD") == 0){
+			addClient(processedMessage);
 		}
 
+		if(0 == strcmp(processedMessage->array[1], "END")) {
+			waitTime.tv_nsec = 0;
+			waitTime.tv_sec = 0;
+		} else {
+			waitTime.tv_sec = time(NULL) + WAIT_TIME;
+		}
+
+		if(0 == strcmp(processedMessage->array[1], "MIRROR")) {
+			mirror(processedMessage, message);
+		}
+
+		if(0 == strcmp(processedMessage->array[1], "CALC")) {
+			calc(processedMessage);
+		}
+
+		if(0 == strcmp(processedMessage->array[1], "DATE")) {
+			sendTime(processedMessage);
+		}
 	}
+	free(message);
 	quit(0);
 }
 

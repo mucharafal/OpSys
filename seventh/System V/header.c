@@ -41,3 +41,31 @@ void printTime(char *name){
 	clock_gettime(CLOCK_MONOTONIC, &time);
 	printf("%s; pid: %li, time %i,%li sec\n", name, getpid(), time.tv_sec, time.tv_nsec / 1000);
 }
+
+int addElement(fifo *queue, long element){
+	if(queue->numberElements == queue->length)	return -1;
+
+	int index = queue->firstElement + queue->numberElements;
+	index %= queue->length;
+	queue->pids[index] = element;
+	queue->numberElements++;
+
+	return queue->numberElements;
+}
+
+long takeElement(fifo *queue){
+	if(queue->numberElements == 0)	return -1;
+
+	long toReturn = queue->pids[queue->firstElement];
+
+	queue->firstElement++;
+	queue->firstElement %= queue->length;
+
+	queue->numberElements--;
+
+	return toReturn;
+}	
+
+int numberOfElements(fifo *queue){
+	return queue->numberElements;
+}

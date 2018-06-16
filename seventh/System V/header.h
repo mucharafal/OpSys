@@ -27,6 +27,15 @@ struct msgbuf {
     char mtext[1];
 };
 
+typedef struct{
+	int length;
+	int firstElement;
+	int numberElements;
+	long pids[];
+}fifo;
+
 void printTime(char *name);
+int addElement(fifo *queue, long element);
+long takeElement(fifo *queue);
 
 #endif

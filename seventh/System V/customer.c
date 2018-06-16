@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 20000000
 
-//#define VERBOSE 1
+#define VERBOSE 1
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -18,9 +18,21 @@
 //queue
 #include <sys/types.h>
 #include <sys/ipc.h>
-#include <sys/msg.h>
+#include <sys/shm.h>
+#include <sys/mman.h>
 
 #include "header.h"
+
+int queueDes;
+
+fifo *openFifo(){
+	int size = sizeof(fifo);
+	key_t key = ftok("./barber.c", 's');
+	queueDes = shmget(key, 0, 0);
+	void *addr = shmat(queueDes, NULL, SHM_RND);
+	fifo *result = (fifo*)addr;    
+	return result;
+}
 
 int main(int args, char *argv[]){
     /*
@@ -33,8 +45,7 @@ int main(int args, char *argv[]){
 	key_t key = ftok(".", 's');
 	int semaphores = semget(key, 0, 0600);
     
-    key = ftok("./barber.c", 's');
-    int queue = msgget(key, 0600);
+    fifo *queue = openFifo();
 
     int N = atoi(argv[1]);
     for(int i = 0; i <  N - 1; i++){
@@ -54,12 +65,10 @@ int main(int args, char *argv[]){
             incSemaphore(semaphores, SLEEPING_BARBER);
 
             //wyślij sygnał - przez kolejkę?
-            struct msgbuf msgbuf;
-            msgbuf.mtype = getpid();
             #ifdef VERBOSE
-            printf("Pid: %li\n", msgbuf.mtype);
+            printf("Pid: %li\n", getpid());
             #endif
-            msgsnd(queue, &msgbuf, 0, 0);
+            addElement(queue, getpid());
 
             incSemaphore(semaphores, WAKE_BARBER);
             incSemaphore(semaphores, CORRIDOR);
@@ -79,9 +88,7 @@ int main(int args, char *argv[]){
             if(customersNumberInWR < limitCustomersNumberInWR) {
                 printTime("Customer, taking place in waiting room");
                 incSemaphore(semaphores, WAITING_CLIENTS);
-                struct msgbuf msgbuf;
-                msgbuf.mtype = getpid();
-                msgsnd(queue, &msgbuf, 0, 0);
+                addElement(queue, getpid());
                 //zajmij odpowiednie krzesło
                 
                 printTime("After taking the place");
@@ -104,15 +111,6 @@ int main(int args, char *argv[]){
                     if(next - WAITING_ROOM_QUEUE >= 0) {
                         goIn(semaphores, next);
                     }
-                    /*
-                    //błędy! odwołania poza semafory? i w ogóle to ogarnąć...
-                    if(customersNumberInWR - i - 1 >= 0) {
-                        incSemaphore(semaphores, customersNumberInWR - i + 1 + WAITING_ROOM_QUEUE);  //problem z rozbiciem kolejki w poczekalni i corridora na dwie grupy semaforów
-                        goIn(semaphores, customersNumberInWR - i - 1 + WAITING_ROOM_QUEUE);
-                    } else {
-                        incSemaphore(semaphores, WAITING_ROOM_QUEUE + 1);
-                    }
-                    */
                 }
                 printTime("After for loop");
                 goIn(semaphores, CORRIDOR);
@@ -136,5 +134,6 @@ int main(int args, char *argv[]){
             }
         }
     }
+    shmdt(queue);
     return 0;
 }
